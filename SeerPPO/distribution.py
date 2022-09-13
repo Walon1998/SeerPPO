@@ -10,12 +10,11 @@ class MaskableCategorical(Categorical):
         self.mask = None
         self.zero = ZERO
 
-    # TODO: Masking
-    # def entropy(self) -> torch.Tensor:
-    #     assert self.mask is not None
-    #     p_log_p = self.logits * self.probs
-    #     p_log_p = torch.where(self.mask, p_log_p, self.zero)
-    #     return -p_log_p.sum(-1)
+    def entropy(self) -> torch.Tensor:
+        assert self.mask is not None
+        p_log_p = self.logits * self.probs
+        p_log_p = torch.where(self.mask, p_log_p, self.zero)
+        return -p_log_p.sum(-1)
 
 
 class MultiCategoricalDistribution:
@@ -30,6 +29,7 @@ class MultiCategoricalDistribution:
         self.distribution = None
         self.action_dims = action_dims
         self.zero = None
+        self.mask = None
 
     def proba_distribution(self, action_logits: torch.Tensor) -> "MultiCategoricalDistribution":
         if self.zero is None:
@@ -44,6 +44,11 @@ class MultiCategoricalDistribution:
         ).sum(dim=1)
 
     def entropy(self) -> torch.Tensor:
+        assert self.mask is not None
+        counter = 0
+        for split in torch.split(self.mask, tuple(self.action_dims), dim=1):
+            self.distribution[counter].mask = split
+            counter += 1
         return torch.stack([dist.entropy() for dist in self.distribution], dim=1).sum(dim=1)
 
     def sample(self) -> torch.Tensor:
@@ -74,7 +79,4 @@ class MultiCategoricalDistribution:
         return self.sample()
 
     def apply_mask(self, mask):
-        counter = 0
-        for split in torch.split(mask, tuple(self.action_dims), dim=1):
-            self.distribution[counter].mask = split
-            counter += 1
+        self.mask = mask

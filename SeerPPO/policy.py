@@ -2,6 +2,7 @@ import torch
 from torch import nn
 
 from SeerPPO.distribution import MultiCategoricalDistribution
+from SeerPPO.masking import create_mask
 from SeerPPO.normalization import SeerScaler
 
 
@@ -38,42 +39,11 @@ class SeerNetwork(nn.Module):
         self.distribution = MultiCategoricalDistribution([3, 5, 5, 3, 2, 2, 2])
         self.HUGE_NEG = None
 
-    def apply_mask(self, obs, x):
-        if self.HUGE_NEG is None:
-            self.HUGE_NEG = torch.tensor(-1e8, dtype=torch.float32).to(x.device)
-
-        has_boost = obs[:, 13] > 0.0
-        on_ground = obs[:, 14]
-        has_flip = obs[:, 15]
-
-        in_air = torch.logical_not(on_ground)
-        mask = torch.ones_like(x, dtype=torch.bool)
-
-        # mask[:, 0:3] = 1.0  # Throttle, always possible
-        # mask[:, 3:8] = 1.0  # Steer yaw, always possible
-        # mask[:, 8:13] = 1.0  # pitch, not on ground but (flip resets, walldashes)
-        # mask[:, 13:16] = 1.0  # roll, not on ground
-        # mask[:, 16:18] = 1.0  # jump, has flip (turtle)
-        # mask[:, 18:20] = 1.0  # boost, boost > 0
-        # mask[:, 20:22] = 1.0  # Handbrake, at least one wheel ground (not doable)
-
-        in_air = in_air.unsqueeze(1)
-        mask[:, 8:16] = in_air  # pitch + roll
-
-        has_flip = has_flip.unsqueeze(1)
-        mask[:, 16:18] = has_flip  # has flip
-
-        has_boost = has_boost.unsqueeze(1)
-        mask[:, 18:20] = has_boost  # boost
-
-        on_ground = on_ground.unsqueeze(1)
-        mask[:, 20:22] = on_ground  # Handbrake
-
-        x = torch.where(mask, x, self.HUGE_NEG)
-
-        return x, mask
-
     def forward(self, obs, lstm_states, episode_starts, deterministic):
+
+        if self.HUGE_NEG is None:
+            self.HUGE_NEG = torch.tensor(-1e8, dtype=torch.float32).to(obs.device)
+
         # Rollout
         x = self.scaler(obs)
         x = self.mlp_encoder(x)
@@ -87,11 +57,10 @@ class SeerNetwork(nn.Module):
 
         value = self.value_network(x)
         policy_logits = self.policy_network(x)
-        # if use_masking:
-        #     policy_logits, mask = self.apply_mask(obs, policy_logits)
+        mask = create_mask(obs, policy_logits.shape[0])
+        policy_logits = torch.where(mask, policy_logits, self.HUGE_NEG)
         self.distribution.proba_distribution(policy_logits)
-        # if use_masking:
-        #     self.distribution.apply_mask(mask)
+        self.distribution.apply_mask(mask)
 
         actions = self.distribution.get_actions(deterministic=deterministic)
         log_prob = self.distribution.log_prob(actions)
@@ -111,7 +80,10 @@ class SeerNetwork(nn.Module):
         value = self.value_network(x)
         return value
 
-    def evaluate_actions(self, obs, actions, lstm_states, episode_starts):
+    def evaluate_actions(self, obs, actions, lstm_states, episode_starts, mask):
+
+        if self.HUGE_NEG is None:
+            self.HUGE_NEG = torch.tensor(-1e8, dtype=torch.float32).to(obs.device)
 
         lstm_states = (lstm_states[0].swapaxes(0, 1), lstm_states[1].swapaxes(0, 1))
 
@@ -136,6 +108,7 @@ class SeerNetwork(nn.Module):
 
         value = self.value_network(x)
         policy_logits = self.policy_network(x)
+        policy_logits = torch.where(mask, policy_logits, self.HUGE_NEG)
         self.distribution.proba_distribution(policy_logits)
         log_prob = self.distribution.log_prob(actions)
 
