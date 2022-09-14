@@ -53,7 +53,7 @@ class SeerNetwork(nn.Module):
         lstm_states = (lstm_states[0] * lstm_reset, lstm_states[1] * lstm_reset)
         x, lstm_states = self.LSTM(x.unsqueeze(1), lstm_states)
 
-        x = x.squeeze()
+        x = x.squeeze(dim=1)
 
         value = self.value_network(x)
         policy_logits = self.policy_network(x)
@@ -79,6 +79,31 @@ class SeerNetwork(nn.Module):
 
         value = self.value_network(x)
         return value
+
+    def predict_actions(self, obs, lstm_states, episode_starts, deterministic):
+        if self.HUGE_NEG is None:
+            self.HUGE_NEG = torch.tensor(-1e8, dtype=torch.float32).to(obs.device)
+
+            # Rollout
+        x = self.scaler(obs)
+        x = self.mlp_encoder(x)
+
+        lstm_reset = (1.0 - episode_starts).view(1, -1, 1)
+
+
+        lstm_states = (lstm_states[0] * lstm_reset, lstm_states[1] * lstm_reset)
+        x, lstm_states = self.LSTM(x.unsqueeze(1), lstm_states)
+
+        x = x.squeeze(dim=1)
+
+        policy_logits = self.policy_network(x)
+        mask = create_mask(obs, policy_logits.shape[0])
+        policy_logits = torch.where(mask, policy_logits, self.HUGE_NEG)
+        self.distribution.proba_distribution(policy_logits)
+        self.distribution.apply_mask(mask)
+
+        actions = self.distribution.get_actions(deterministic=deterministic)
+        return actions, lstm_states
 
     def evaluate_actions(self, obs, actions, lstm_states, episode_starts, mask):
 
