@@ -75,7 +75,7 @@ class SeerNetwork(nn.Module):
 
         lstm_states = (lstm_states[0] * lstm_reset, lstm_states[1] * lstm_reset)
         x, lstm_states = self.LSTM(x.unsqueeze(1), lstm_states)
-        x = x.squeeze()
+        x = x.squeeze(dim=1)
 
         value = self.value_network(x)
         return value
