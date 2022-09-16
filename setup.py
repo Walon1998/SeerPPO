@@ -24,5 +24,5 @@ setup(
     keywords="rl, seer, ppo",
     packages=find_packages(),
     python_requires=">=3.7, <4",
-    install_requires=["torch", "numba", "numpy"],
+    install_requires=["torch", "numba", "numpy", "scipy"],
 )
