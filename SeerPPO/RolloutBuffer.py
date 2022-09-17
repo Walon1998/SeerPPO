@@ -124,6 +124,8 @@ class RolloutBuffer:
         new_advantages = self.advantages.transpose((1, 0)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length)
         new_returns = self.returns.transpose((1, 0)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length)
 
+        new_advantages = (new_advantages - new_advantages.ravel().mean()) / (new_advantages.ravel().std() + 1e-8)
+
         new_cell_states = self.cell_states.transpose((1, 0, 2)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.lstm_hidden_size)
         new_hidden_states = self.hidden_states.transpose((1, 0, 2)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.lstm_hidden_size)
 
