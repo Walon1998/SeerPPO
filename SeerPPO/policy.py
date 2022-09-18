@@ -66,7 +66,7 @@ class SeerNetwork(nn.Module):
         log_prob = self.distribution.log_prob(actions)
         return actions, value, log_prob, lstm_states
 
-    def predict_value(self, obs):
+    def predict_value(self, obs, lstm_states, episode_starts):
         # Rollout
         x = self.scaler(obs)
         x = self.mlp_encoder(x)
