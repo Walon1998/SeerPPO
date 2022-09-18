@@ -134,7 +134,7 @@ class RolloutBuffer:
 
         r2 = r2_score(self.values.ravel(), self.returns.ravel())
         episode_starts_sum = self.episode_starts.sum()
-        ep_len_mean = np.NaN
+        ep_len_mean = 0.0
         if episode_starts_sum != 0.0:
             ep_len_mean = (self.episode_starts.size / episode_starts_sum)
 
