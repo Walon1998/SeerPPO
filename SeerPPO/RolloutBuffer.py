@@ -1,4 +1,4 @@
-from typing import NamedTuple, Tuple, Union
+from typing import NamedTuple, Tuple, Union, Any
 
 import numpy as np
 import torch
@@ -14,8 +14,8 @@ class RolloutBufferSamples(NamedTuple):
     returns: Union[np.ndarray, torch.Tensor]
     lstm_states: Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]
     episode_starts: Union[np.ndarray, torch.Tensor]
-    reward_mean: float32
-    ep_len_mean: float32
+    reward_mean: Any
+    ep_len_mean: Any
     r2: float32
 
 
@@ -113,7 +113,7 @@ class RolloutBuffer:
             self.advantages[step] = last_gae_lam
         self.returns = self.advantages + self.values
 
-    def get_samples(self, reward_mean):
+    def get_samples(self, monitor_data):
 
         stack_size = int(self.buffer_size / self.lstm_unroll_length)
 
@@ -133,10 +133,6 @@ class RolloutBuffer:
         lstm_states = new_hidden_states, new_cell_states
 
         r2 = r2_score(self.values.ravel(), self.returns.ravel())
-        episode_starts_sum = self.episode_starts.sum()
-        ep_len_mean = 0.0
-        if episode_starts_sum != 0.0:
-            ep_len_mean = (self.episode_starts.size / episode_starts_sum)
 
         return RolloutBufferSamples(
             observations=new_obs,
@@ -146,7 +142,7 @@ class RolloutBuffer:
             returns=new_returns,
             lstm_states=lstm_states,
             episode_starts=new_episode_starts,
-            reward_mean=reward_mean,
-            ep_len_mean=ep_len_mean,
+            reward_mean=[i[0] for i in monitor_data],
+            ep_len_mean=[i[1] for i in monitor_data],
             r2=r2,
         )
