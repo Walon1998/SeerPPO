@@ -14,9 +14,9 @@ class RolloutBufferSamples(NamedTuple):
     returns: Union[np.ndarray, torch.Tensor]
     lstm_states: Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]
     episode_starts: Union[np.ndarray, torch.Tensor]
-    reward_mean: Any
-    ep_len_mean: Any
-    r2: float32
+    reward_mean: np.ndarray
+    ep_len_mean: np.ndarray
+    r2: np.ndarray
 
 
 spec = [
@@ -142,7 +142,7 @@ class RolloutBuffer:
             returns=new_returns,
             lstm_states=lstm_states,
             episode_starts=new_episode_starts,
-            reward_mean=[i[0] for i in monitor_data],
-            ep_len_mean=[i[1] for i in monitor_data],
+            reward_mean=monitor_data[0],
+            ep_len_mean=monitor_data[1],
             r2=r2,
         )
