@@ -127,6 +127,9 @@ class RolloutBuffer:
         lstm_states_0 = self.lstm_states_0.transpose((1, 0, 2)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.lstm_hidden_size)
         lstm_states_1 = self.lstm_states_1.transpose((1, 0, 2)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.lstm_hidden_size)
 
+        lstm_states_0 = np.expand_dims(lstm_states_0[:, 0, :], axis=1)
+        lstm_states_1 = np.expand_dims(lstm_states_1[:, 0, :], axis=1)
+
         lstm_states = lstm_states_0, lstm_states_1
 
         r2 = r2_score(self.values.ravel(), self.returns.ravel())
