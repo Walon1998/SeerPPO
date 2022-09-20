@@ -35,8 +35,8 @@ spec = [
     ('episode_starts', float32[:, :]),
     ('values', float32[:, :]),
     ('log_prob', float32[:, :]),
-    ('cell_states', float32[:, :, :]),
-    ('hidden_states', float32[:, :, :]),
+    ('lstm_states_0', float32[:, :, :]),
+    ('lstm_states_1', float32[:, :, :]),
     ('advantages', float32[:, :]),
     ('returns', float32[:, :]),
 
@@ -75,23 +75,23 @@ class RolloutBuffer:
         self.episode_starts = np.empty((self.buffer_size, self.n_envs), dtype=np.float32)
         self.values = np.empty((self.buffer_size, self.n_envs), dtype=np.float32)
         self.log_prob = np.empty((self.buffer_size, self.n_envs), dtype=np.float32)
-        self.cell_states = np.empty((self.buffer_size, self.n_envs, self.lstm_hidden_size), dtype=np.float32)
-        self.hidden_states = np.empty((self.buffer_size, self.n_envs, self.lstm_hidden_size), dtype=np.float32)
+        self.lstm_states_0 = np.empty((self.buffer_size, self.n_envs, self.lstm_hidden_size), dtype=np.float32)
+        self.lstm_states_1 = np.empty((self.buffer_size, self.n_envs, self.lstm_hidden_size), dtype=np.float32)
         self.advantages = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.returns = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
 
     def reset(self):
         self.pos = 0
 
-    def add(self, obs, action, reward, episode_start, value, log_prob, cell_states, hidden_states):
+    def add(self, obs, action, reward, episode_start, value, log_prob, lstm_states_0, lstm_states_1):
         self.observations[self.pos] = obs
         self.actions[self.pos] = action
         self.rewards[self.pos] = reward
         self.episode_starts[self.pos] = episode_start
         self.values[self.pos] = value
         self.log_prob[self.pos] = log_prob
-        self.cell_states[self.pos] = cell_states
-        self.hidden_states[self.pos] = hidden_states
+        self.lstm_states_0[self.pos] = lstm_states_0
+        self.lstm_states_1[self.pos] = lstm_states_1
 
         self.pos += 1
 
@@ -124,13 +124,10 @@ class RolloutBuffer:
         new_advantages = self.advantages.transpose((1, 0)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length)
         new_returns = self.returns.transpose((1, 0)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length)
 
-        new_cell_states = self.cell_states.transpose((1, 0, 2)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.lstm_hidden_size)
-        new_hidden_states = self.hidden_states.transpose((1, 0, 2)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.lstm_hidden_size)
+        lstm_states_0 = self.lstm_states_0.transpose((1, 0, 2)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.lstm_hidden_size)
+        lstm_states_1 = self.lstm_states_1.transpose((1, 0, 2)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.lstm_hidden_size)
 
-        new_cell_states = np.expand_dims(new_cell_states[:, 0, :], axis=1)
-        new_hidden_states = np.expand_dims(new_hidden_states[:, 0, :], axis=1)
-
-        lstm_states = new_hidden_states, new_cell_states
+        lstm_states = lstm_states_0, lstm_states_1
 
         r2 = r2_score(self.values.ravel(), self.returns.ravel())
 
