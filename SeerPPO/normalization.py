@@ -125,7 +125,7 @@ class SeerScaler(nn.Module):
              player_alive, player_alive,
              player_speed,
              player_speed,
-             ball_speed, prev_action]
+             ball_speed, prev_action], dtype=np.float32
         )
 
         self.scaler = torch.tensor(scaler, dtype=torch.float32, requires_grad=False)

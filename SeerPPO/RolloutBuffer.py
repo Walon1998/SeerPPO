@@ -100,7 +100,7 @@ class RolloutBuffer:
 
     def compute_returns_and_advantage(self, last_values, dones):
 
-        last_gae_lam = np.zeros(1)
+        last_gae_lam = np.zeros(1, dtype=np.float32)
         for step in range(self.buffer_size - 1, -1, -1):
             if step == self.buffer_size - 1:
                 next_non_terminal = 1.0 - dones
