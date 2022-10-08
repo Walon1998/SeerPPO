@@ -17,12 +17,12 @@ async def download_models(session, url, disable=False):
         files_to_delete = set(local_files) - set(files)
 
         for f in files_to_delete:
-            if f == '':
+            if ".pt" not in f:
                 continue
             os.remove("./Models/{f}".format(f=f))
 
         for f in tqdm(file_to_get, disable=disable):
-            if f == '':
+            if ".pt" not in f:
                 continue
             async with session.get(url + "/Models/{f}".format(f=f)) as resp2:
                 assert resp2.status == 200
