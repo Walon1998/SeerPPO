@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 from SeerPPO.distribution import MultiCategoricalDistribution
-from SeerPPO.normalization import SeerScaler, BallScalerv2, BoostpadsScalerv2, PlayerEncoder
+from SeerPPO.normalization import SeerScaler
 
 
 class SeerNetwork(nn.Module):
@@ -189,7 +189,6 @@ class SeerNetworkv2(nn.Module):
         self.OTHER_ENC_SIZE = 128
 
         self.ball_encoder = nn.Sequential(
-            BallScalerv2(),
             nn.Linear(self.BALL_SIZE, self.BALL_ENC_SIZE),
             self.activation,
         )
@@ -200,13 +199,11 @@ class SeerNetworkv2(nn.Module):
         )
 
         self.boost_pads_encoder = nn.Sequential(
-            BoostpadsScalerv2(),
             nn.Linear(self.BOOSTPADS_SIZE, self.PADS_ENC_SIZE),
             self.activation,
         )
 
         self.player_encoder = nn.Sequential(
-            PlayerEncoder(),
             nn.Linear(self.PLAYER_SIZE, self.PLAYER_ENC_SIZE),
             self.activation,
         )

@@ -36,6 +36,39 @@ def get_encoded_action(action: np.ndarray) -> np.ndarray:
 
     return action_encoding
 
+@jit(nopython=True, fastmath=True)
+def get_encoded_actionv2(action: np.ndarray) -> np.ndarray:
+    # throttle, steer, pitch, yaw, roll, jump, boost, handbrake
+
+    action_encoding = np.zeros(15, dtype=np.float32)
+
+    acc = 0
+    throttle_index = action[0] + 1 + acc
+    acc += 3
+    steer_yaw_index = action[1] + 1 + acc
+    acc += 3
+    pitch_index = action[2] + 1 + acc
+    acc += 3
+    roll_index = action[4] + 1 + acc
+
+    action_encoding[int(throttle_index)] = 1.0
+    action_encoding[int(steer_yaw_index)] = 1.0
+    action_encoding[int(pitch_index)] = 1.0
+    action_encoding[int(roll_index)] = 1.0
+
+    action_encoding[14] = action[7]
+    action_encoding[13] = action[6]
+    action_encoding[12] = action[5]
+
+    # action_without_yaw = action[[0, 1, 2, 4, 5, 6, 7]]  # remove yaw
+
+    # encoder = OneHotEncoder(sparse=False, drop='if_binary',
+    #                         categories=[np.array([-1., 0., 1.]), np.array([-1., -0.5, 0., 0.5, 1.]), np.array([-1., -0.5, 0., 0.5, 1.]), np.array([-1., 0., 1.]), np.array([0., 1.]),
+    #                                     np.array([0., 1.]),
+    #                                     np.array([0., 1.])])
+
+    return action_encoding
+
 
 @jit(nopython=True, fastmath=True)
 def get_distance(array_0: np.ndarray, array_1: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
