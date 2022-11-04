@@ -5,27 +5,7 @@ import torch
 from torch import nn
 
 
-class Scaler(nn.Module):
-
-    def __init__(self):
-        super().__init__()
-        self.scaler = None
-
-    def forward(self, x):
-        with torch.no_grad():
-
-            if x.is_cuda:
-                device_x = "cuda"
-            else:
-                device_x = "cpu"
-
-            self.scaler = self.scaler.to(device_x)
-
-            x = x * self.scaler
-        return x
-
-
-class SeerScaler(Scaler):
+class SeerScaler(nn.Module):
     def __init__(self):
         super().__init__()
 
@@ -151,3 +131,16 @@ class SeerScaler(Scaler):
         self.scaler = torch.tensor(scaler, dtype=torch.float32, requires_grad=False)
 
         assert torch.all(self.scaler <= 1.0)
+
+    def forward(self, x):
+        with torch.no_grad():
+
+            if x.is_cuda:
+                device_x = "cuda"
+            else:
+                device_x = "cpu"
+
+            self.scaler = self.scaler.to(device_x)
+
+            x = x * self.scaler
+        return x
