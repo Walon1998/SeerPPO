@@ -1,10 +1,11 @@
 from numba import jit
 import numpy as np
 from typing import Any, Tuple
+from rlgym.utils import common_values, ObsBuilder
 
 
 @jit(nopython=True, fastmath=True)
-def get_encoded_action(action: np.ndarray) -> np.ndarray:
+def get_encoded_actionV1(action: np.ndarray) -> np.ndarray:
     # throttle, steer, pitch, yaw, roll, jump, boost, handbrake
 
     action_encoding = np.zeros(19, dtype=np.float32)
@@ -26,39 +27,6 @@ def get_encoded_action(action: np.ndarray) -> np.ndarray:
     action_encoding[18] = action[7]
     action_encoding[17] = action[6]
     action_encoding[16] = action[5]
-
-    # action_without_yaw = action[[0, 1, 2, 4, 5, 6, 7]]  # remove yaw
-
-    # encoder = OneHotEncoder(sparse=False, drop='if_binary',
-    #                         categories=[np.array([-1., 0., 1.]), np.array([-1., -0.5, 0., 0.5, 1.]), np.array([-1., -0.5, 0., 0.5, 1.]), np.array([-1., 0., 1.]), np.array([0., 1.]),
-    #                                     np.array([0., 1.]),
-    #                                     np.array([0., 1.])])
-
-    return action_encoding
-
-@jit(nopython=True, fastmath=True)
-def get_encoded_actionv2(action: np.ndarray) -> np.ndarray:
-    # throttle, steer, pitch, yaw, roll, jump, boost, handbrake
-
-    action_encoding = np.zeros(15, dtype=np.float32)
-
-    acc = 0
-    throttle_index = action[0] + 1 + acc
-    acc += 3
-    steer_yaw_index = action[1] + 1 + acc
-    acc += 3
-    pitch_index = action[2] + 1 + acc
-    acc += 3
-    roll_index = action[4] + 1 + acc
-
-    action_encoding[int(throttle_index)] = 1.0
-    action_encoding[int(steer_yaw_index)] = 1.0
-    action_encoding[int(pitch_index)] = 1.0
-    action_encoding[int(roll_index)] = 1.0
-
-    action_encoding[14] = action[7]
-    action_encoding[13] = action[6]
-    action_encoding[12] = action[5]
 
     # action_without_yaw = action[[0, 1, 2, 4, 5, 6, 7]]  # remove yaw
 
@@ -156,3 +124,133 @@ def impute_features(player_car_state: np.ndarray, opponent_car_data: np.ndarray,
     )
 
     return result
+
+
+def _encode_player(player, inverted: bool, demo_timer: float):
+    if inverted:
+        player_car = player.inverted_car_data
+    else:
+        player_car = player.car_data
+
+    array = np.array([
+        player_car.position[0],
+        player_car.position[1],
+        player_car.position[2],
+        player_car.pitch(),
+        player_car.yaw(),
+        player_car.roll(),
+        player_car.linear_velocity[0],
+        player_car.linear_velocity[1],
+        player_car.linear_velocity[2],
+        player_car.angular_velocity[0],
+        player_car.angular_velocity[1],
+        player_car.angular_velocity[2],
+        demo_timer,
+        player.boost_amount * 100,
+        player.on_ground,
+        player.has_flip,
+    ], dtype=np.float32)
+
+    assert array.shape[0] == 16
+
+    return array
+
+
+def _encode_ball(ball):
+    state = np.empty(9, dtype=np.float32)
+
+    state[0] = ball.position[0]
+    state[1] = ball.position[1]
+    state[2] = ball.position[2]
+    state[3] = ball.linear_velocity[0]
+    state[4] = ball.linear_velocity[1]
+    state[5] = ball.linear_velocity[2]
+    state[6] = ball.angular_velocity[0]
+    state[7] = ball.angular_velocity[1]
+    state[8] = ball.angular_velocity[2]
+
+    assert state.shape[0] == 9
+
+    return state
+
+
+class SeerObsV1(ObsBuilder):
+    def __init__(self, default_tick_skip=8.0, physics_ticks_per_second=120.0):
+        super(SeerObsV1, self).__init__()
+
+        self.boost_pads_timers = np.zeros(34, dtype=np.float32)
+        self.blue_demo_timer = 0.0
+        self.orange_demo_timer = 0.0
+
+        self.time_diff_tick = default_tick_skip / physics_ticks_per_second
+
+    def reset(self, initial_state):
+
+        self.boost_pads_timers = np.zeros(34, dtype=np.float32)
+        self.blue_demo_timer = 0.0
+        self.orange_demo_timer = 0.0
+
+    def pre_step(self, state):
+
+        self.update_boostpads(state.boost_pads)
+        self.update_demo_timers(state)
+
+    def build_obs(self, player, state, previous_action: np.ndarray) -> Any:
+
+        assert len(state.players) == 2
+
+        if player.team_num == common_values.ORANGE_TEAM:
+            inverted = True
+            ball = state.inverted_ball
+            pads = self.boost_pads_timers[::-1]
+            player_demo_timer = self.orange_demo_timer
+            opponent_demo_timer = self.blue_demo_timer
+
+        else:
+            inverted = False
+            ball = state.ball
+            pads = self.boost_pads_timers
+            opponent_demo_timer = self.orange_demo_timer
+            player_demo_timer = self.blue_demo_timer
+
+        ball_data = _encode_ball(ball)
+        player_car_state = _encode_player(player, inverted, player_demo_timer)
+
+        # opponent_car_data = None
+        for other in state.players:
+            if other.car_id == player.car_id:
+                continue
+
+            opponent_car_data = _encode_player(other, inverted, opponent_demo_timer)
+
+        # assert opponent_car_data is not None
+
+        prev_action_enc = get_encoded_actionV1(previous_action)
+
+        x_train = impute_features(player_car_state, opponent_car_data, pads, ball_data, prev_action_enc)
+
+        return x_train
+
+    def update_boostpads(self, pads):
+
+        mask = pads == 1.0
+        not_mask = np.logical_not(mask)
+
+        self.boost_pads_timers[mask] = 0.0
+        self.boost_pads_timers[not_mask] += self.time_diff_tick
+
+    def update_demo_timers(self, state):
+
+        for p in state.players:
+
+            if p.team_num == common_values.ORANGE_TEAM:
+
+                if p.is_demoed:
+                    self.orange_demo_timer += self.time_diff_tick
+                else:
+                    self.orange_demo_timer = 0.0
+            else:
+                if p.is_demoed:
+                    self.blue_demo_timer += self.time_diff_tick
+                else:
+                    self.blue_demo_timer = 0.0

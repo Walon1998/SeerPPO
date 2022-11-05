@@ -1,0 +1,9 @@
+numpy
+numba
+rlgym
+gym
+torch
+rlbot
+aiohttp
+tqdm
+setuptools

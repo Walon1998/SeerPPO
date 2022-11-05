@@ -5,10 +5,9 @@ here = pathlib.Path(__file__).parent.resolve()
 
 long_description = (here / "README.md").read_text(encoding="utf-8")
 
-
 setup(
     name="SeerPPO",
-    version="0.0.3",
+    version="0.0.4",
     url="https://github.com/Walon1998/SeerPPO",
     author="Neville Walo",
     author_email="neville.walo@gmail.com",
@@ -24,5 +23,13 @@ setup(
     keywords="rl, seer, ppo",
     packages=find_packages(),
     python_requires=">=3.7, <4",
-    install_requires=["torch", "numba", "numpy", "scipy"],
+    install_requires=["numpy",
+                      "numba",
+                      "rlgym",
+                      "gym",
+                      "torch",
+                      "rlbot",
+                      "aiohttp",
+                      "tqdm",
+                      "setuptools", ],
 )
