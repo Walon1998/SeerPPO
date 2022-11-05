@@ -54,7 +54,7 @@ class SeerBot(BaseAgent):
             teammates = [p for p in self.game_state.players if p.team_num == self.team]
             opponents = [p for p in self.game_state.players if p.team_num != self.team]
 
-            self.game_state.players = [player] + teammates + opponents
+            self.game_state.players = teammates + opponents
 
             self.obs_builder.pre_step(self.game_state)
             obs = self.obs_builder.build_obs(player, self.game_state, self.action)
