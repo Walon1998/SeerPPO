@@ -209,7 +209,7 @@ class SeerV1Template(BaseAgent):
     def __init__(self, name, team, index, filename):
         super().__init__(name, team, index)
 
-        self.filename = None
+        self.filename = filename
         self.game_over = False
         self.tick_skip = 8
         self.ticks = 8  # # So we take an action the first tick
