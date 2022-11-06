@@ -10,7 +10,7 @@ import math
 
 
 @jit(nopython=True, fastmath=True)
-def get_distance(array_0: np.ndarray, array_1: np.ndarray):
+def get_distanceV1(array_0: np.ndarray, array_1: np.ndarray):
     # assert array_0.shape[0] == 3
     # assert array_1.shape[0] == 3
 
@@ -22,7 +22,7 @@ def get_distance(array_0: np.ndarray, array_1: np.ndarray):
 
 
 @jit(nopython=True, fastmath=True)
-def get_speed(array: np.ndarray):
+def get_speedV1(array: np.ndarray):
     speed = np.linalg.norm(array)
 
     is_super_sonic = speed >= 2200.0
@@ -31,7 +31,7 @@ def get_speed(array: np.ndarray):
 
 
 @jit(nopython=True, fastmath=True)
-def impute_features(player_car_state: np.ndarray, opponent_car_data: np.ndarray, pads, ball_data: np.ndarray, prev_action_enc: np.ndarray):
+def impute_featuresV1(player_car_state: np.ndarray, opponent_car_data: np.ndarray, pads, ball_data: np.ndarray, prev_action_enc: np.ndarray):
     # assert x_train.shape[0] == input_features_replay
 
     player_0 = player_car_state
@@ -66,18 +66,18 @@ def impute_features(player_car_state: np.ndarray, opponent_car_data: np.ndarray,
     player_0_is_alive = np.array(player_0_is_alive, dtype=np.float32).reshape(1)
     player_1_is_alive = np.array(player_1_is_alive, dtype=np.float32).reshape(1)
 
-    player_0_speed, player_0_super_sonic = get_speed(player_0_velocity)
-    player_1_speed, player_1_super_sonic = get_speed(player_1_velocity)
-    ball_speed, _ = get_speed(ball_velocity)
+    player_0_speed, player_0_super_sonic = get_speedV1(player_0_velocity)
+    player_1_speed, player_1_super_sonic = get_speedV1(player_1_velocity)
+    ball_speed, _ = get_speedV1(ball_velocity)
 
-    player_opponent_pos_diff, player_opponent_pos_norm = get_distance(player_0_pos, player_1_pos)
-    player_opponent_vel_diff, player_opponent_vel_norm = get_distance(player_0_velocity, player_1_velocity)
+    player_opponent_pos_diff, player_opponent_pos_norm = get_distanceV1(player_0_pos, player_1_pos)
+    player_opponent_vel_diff, player_opponent_vel_norm = get_distanceV1(player_0_velocity, player_1_velocity)
 
-    player_ball_pos_diff, player_ball_pos_norm = get_distance(player_0_pos, ball_pos)
-    player_ball_vel_diff, player_ball_vel_norm = get_distance(player_0_velocity, ball_velocity)
+    player_ball_pos_diff, player_ball_pos_norm = get_distanceV1(player_0_pos, ball_pos)
+    player_ball_vel_diff, player_ball_vel_norm = get_distanceV1(player_0_velocity, ball_velocity)
 
-    opponent_ball_pos_diff, opponent_ball_pos_norm = get_distance(player_1_pos, ball_pos)
-    opponent_ball_vel_diff, opponent_ball_vel_norm = get_distance(player_1_velocity, ball_velocity)
+    opponent_ball_pos_diff, opponent_ball_pos_norm = get_distanceV1(player_1_pos, ball_pos)
+    opponent_ball_vel_diff, opponent_ball_vel_norm = get_distanceV1(player_1_velocity, ball_velocity)
 
     result = np.concatenate((
         player_car_state, opponent_car_data, pads, ball_data,
@@ -97,15 +97,15 @@ def impute_features(player_car_state: np.ndarray, opponent_car_data: np.ndarray,
     return result
 
 
-enc = OneHotEncoder(sparse=False, drop='if_binary',
-                    categories=[np.array([0., 1., 2.]), np.array([0., 1., 2., 3., 4.]), np.array([0., 1., 2., 3., 4.]), np.array([0., 1., 2.]), np.array([0., 1.]), np.array([0., 1.]),
+encV1 = OneHotEncoder(sparse=False, drop='if_binary',
+                      categories=[np.array([0., 1., 2.]), np.array([0., 1., 2., 3., 4.]), np.array([0., 1., 2., 3., 4.]), np.array([0., 1., 2.]), np.array([0., 1.]), np.array([0., 1.]),
                                 np.array([0., 1.])])
 
 
-def get_action_encoding(y_train: np.ndarray):
+def get_action_encodingV1(y_train: np.ndarray):
     assert y_train.shape[1] == 7
 
-    result = enc.fit_transform(y_train)
+    result = encV1.fit_transform(y_train)
 
     assert result.shape[1] == 19
 
@@ -113,29 +113,29 @@ def get_action_encoding(y_train: np.ndarray):
 
 
 @jit(nopython=True, fastmath=True)
-def invert_player_data(player_data: np.ndarray) -> np.ndarray:
+def invert_player_dataV1(player_data: np.ndarray) -> np.ndarray:
     assert len(player_data) == 16
     player_data = player_data * np.array([-1, -1, 1, 1, 1, 1, -1, -1, 1, -1, -1, 1, 1, 1, 1, 1], dtype=np.float32)
-    player_data[4] = invert_yaw(player_data[4])
+    player_data[4] = invert_yawV1(player_data[4])
     return player_data
 
 
 @jit(nopython=True, fastmath=True)
-def invert_ball_data(ball_data: np.ndarray) -> np.ndarray:
+def invert_ball_dataV1(ball_data: np.ndarray) -> np.ndarray:
     assert len(ball_data) == 9
     ball_data = ball_data * np.array([-1, -1, 1, -1, -1, 1, -1, -1, 1], dtype=np.float32)
     return ball_data
 
 
 @jit(nopython=True, fastmath=True)
-def invert_boost_data(boost_data: np.ndarray) -> np.ndarray:
+def invert_boost_dataV1(boost_data: np.ndarray) -> np.ndarray:
     assert boost_data.shape[0] == 34
     # just the inverse
     return boost_data[::-1]
 
 
 @jit(nopython=True, fastmath=True)
-def invert_yaw(yaw):
+def invert_yawV1(yaw):
     tol = 1e-4
     assert -math.pi - tol <= yaw <= math.pi + tol
     yaw += math.pi  # yaw in [- pi, pi]
@@ -145,7 +145,7 @@ def invert_yaw(yaw):
     return yaw
 
 
-def encode_player(packet: GameTickPacket, index: int, has_flip: bool, demo_timer: float, inverted: bool) -> ndarray:
+def encode_playerV1(packet: GameTickPacket, index: int, has_flip: bool, demo_timer: float, inverted: bool) -> ndarray:
     array = np.array([
         packet.game_cars[index].physics.location.x,
         packet.game_cars[index].physics.location.y,
@@ -166,12 +166,12 @@ def encode_player(packet: GameTickPacket, index: int, has_flip: bool, demo_timer
     ], dtype=np.float32)
 
     if inverted:
-        array = invert_player_data(array)
+        array = invert_player_dataV1(array)
 
     return array
 
 
-def encode_ball(packet: GameTickPacket, inverted: bool) -> ndarray:
+def encode_ballV1(packet: GameTickPacket, inverted: bool) -> ndarray:
     array = np.array([
         packet.game_ball.physics.location.x,
         packet.game_ball.physics.location.y,
@@ -187,19 +187,19 @@ def encode_ball(packet: GameTickPacket, inverted: bool) -> ndarray:
     ], dtype=np.float32)
 
     if inverted:
-        array = invert_ball_data(array)
+        array = invert_ball_dataV1(array)
 
     return array
 
 
-def encode_boost(packet: GameTickPacket, inverted: bool) -> ndarray:
+def encode_boostV1(packet: GameTickPacket, inverted: bool) -> ndarray:
     array = np.empty(34, dtype=np.float32)
 
     for i in range(34):
         array[i] = packet.game_boosts[i].timer
 
     if inverted:
-        array = invert_boost_data(array)
+        array = invert_boost_dataV1(array)
 
     return array
 
@@ -318,13 +318,13 @@ class SeerV1Template(BaseAgent):
     def build_obs(self, packet):
         agent_flip, opponent_flip = self.get_flips(packet)
         agent_demo_timer, opponent_demo_timer = self.get_demo_timers(packet)
-        player_0 = encode_player(packet, self.index, agent_flip, agent_demo_timer, self.inverted)
-        player_1 = encode_player(packet, self.opponent_index, opponent_flip, opponent_demo_timer, self.inverted)
-        boost = encode_boost(packet, self.inverted)
-        ball = encode_ball(packet, self.inverted)
+        player_0 = encode_playerV1(packet, self.index, agent_flip, agent_demo_timer, self.inverted)
+        player_1 = encode_playerV1(packet, self.opponent_index, opponent_flip, opponent_demo_timer, self.inverted)
+        boost = encode_boostV1(packet, self.inverted)
+        ball = encode_ballV1(packet, self.inverted)
 
-        prev_action_encoding = get_action_encoding(self.prev_action.reshape(1, -1))
-        obs = impute_features(player_0, player_1, boost, ball, prev_action_encoding.reshape(-1)).reshape(1, -1)
+        prev_action_encoding = get_action_encodingV1(self.prev_action.reshape(1, -1))
+        obs = impute_featuresV1(player_0, player_1, boost, ball, prev_action_encoding.reshape(-1)).reshape(1, -1)
         obs = torch.tensor(obs, dtype=torch.float32)
         self.compiled = True
 

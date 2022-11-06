@@ -7,7 +7,7 @@ from torch import nn
 from SeerPPO.distribution import MultiCategoricalDistribution
 
 
-class SeerScaler(nn.Module):
+class SeerScalerV1(nn.Module):
     def __init__(self):
         super().__init__()
 
@@ -155,7 +155,7 @@ class SeerNetworkV1(nn.Module):
 
         self.activation = nn.LeakyReLU()
 
-        self.scaler = SeerScaler()
+        self.scaler = SeerScalerV1()
         self.mlp_encoder = nn.Sequential(
             nn.Linear(159, 256),
             self.activation,
