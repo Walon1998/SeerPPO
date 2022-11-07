@@ -54,7 +54,7 @@ def r2_score(y_true, y_pred):
     return r_2
 
 
-@jitclass(spec)
+# @jitclass(spec)
 class RolloutBuffer:
     def __init__(self, buffer_size, observation_space, action_space, n_envs, lstm_hidden_size, lstm_unroll_length, gamma, gae_lambda):
         self.buffer_size = buffer_size
