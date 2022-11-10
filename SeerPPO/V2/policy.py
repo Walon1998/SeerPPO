@@ -19,7 +19,7 @@ class SeerNetworkV2(nn.Module):
         self.PREV_ACTION_ENC_SIZE = 32
         self.PADS_ENC_SIZE = 64
         self.PLAYER_ENC_SIZE = 64
-        self.OTHER_ENC_SIZE = 256
+        self.OTHER_ENC_SIZE = 128
 
         self.ball_encoder = nn.Sequential(
             nn.Linear(self.BALL_SIZE, self.BALL_ENC_SIZE),
@@ -44,48 +44,30 @@ class SeerNetworkV2(nn.Module):
         self.ones_encoder = nn.Sequential(
             nn.Linear(self.PLAYER_ENC_SIZE, self.OTHER_ENC_SIZE),
             self.activation,
-            nn.Linear(self.OTHER_ENC_SIZE, self.OTHER_ENC_SIZE),
-            self.activation,
         )
 
         self.twos_encoder = nn.Sequential(
             nn.Linear(self.PLAYER_ENC_SIZE * 3, self.OTHER_ENC_SIZE),
-            self.activation,
-            nn.Linear(self.OTHER_ENC_SIZE, self.OTHER_ENC_SIZE),
             self.activation,
         )
 
         self.threes_encoder = nn.Sequential(
             nn.Linear(self.PLAYER_ENC_SIZE * 5, self.OTHER_ENC_SIZE),
             self.activation,
-            nn.Linear(self.OTHER_ENC_SIZE, self.OTHER_ENC_SIZE),
-            self.activation,
         )
 
-        self.COMBINED_OUT = self.BALL_ENC_SIZE + self.PREV_ACTION_ENC_SIZE + self.PADS_ENC_SIZE + self.PLAYER_ENC_SIZE + self.OTHER_ENC_SIZE
-
-        self.pre_LSTM = nn.Sequential(
-            nn.Linear(self.COMBINED_OUT, self.COMBINED_OUT),
-            self.activation,
-            nn.Linear(self.COMBINED_OUT, self.COMBINED_OUT),
-            self.activation,
-        )
-
-        self.LSTM_OUTPUT_SIZE = 384
-        self.LSTM = nn.LSTM(self.COMBINED_OUT, self.LSTM_OUTPUT_SIZE, 1, batch_first=True)
+        self.LSTM_INPUT_SIZE = self.BALL_ENC_SIZE + self.PREV_ACTION_ENC_SIZE + self.PADS_ENC_SIZE + self.PLAYER_ENC_SIZE + self.OTHER_ENC_SIZE
+        self.LSTM_OUTPUT_SIZE = 256
+        self.LSTM = nn.LSTM(self.LSTM_INPUT_SIZE, self.LSTM_OUTPUT_SIZE, 1, batch_first=True)
 
         self.value_network = nn.Sequential(
             nn.Linear(self.LSTM_OUTPUT_SIZE, 128),
-            self.activation,
-            nn.Linear(128, 128),
             self.activation,
             nn.Linear(128, 1),
         )
 
         self.policy_network = nn.Sequential(
             nn.Linear(self.LSTM_OUTPUT_SIZE, 128),
-            self.activation,
-            nn.Linear(128, 128),
             self.activation,
             nn.Linear(128, 18),
         )
@@ -122,11 +104,7 @@ class SeerNetworkV2(nn.Module):
         else:
             raise NotImplementedError
 
-        res = torch.cat([ball_encoding, prev_action_encoding, boost_pads_encoding, player_0_encoding, other_encoding], dim=-1)
-
-        res = self.pre_LSTM(res)
-
-        return res
+        return torch.cat([ball_encoding, prev_action_encoding, boost_pads_encoding, player_0_encoding, other_encoding], dim=-1)
 
     def forward(self, obs, lstm_states, episode_starts, deterministic):
 
