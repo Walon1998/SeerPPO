@@ -7,7 +7,7 @@ long_description = (here / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="SeerPPO",
-    version="0.0.8",
+    version="0.0.14",
     url="https://github.com/Walon1998/SeerPPO",
     author="Neville Walo",
     author_email="neville.walo@gmail.com",
