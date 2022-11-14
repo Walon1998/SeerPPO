@@ -67,12 +67,49 @@ def encode_boostV2(packet, inverted):
     for i in range(34):
         boost_timers[i] = packet.game_boosts[i].timer
 
+    pads_scaler = np.array([
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 10.0,
+        1.0 / 10.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 10.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 10.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 10.0,
+        1.0 / 10.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+        1.0 / 4.0,
+    ], dtype=np.float32)
+
     if inverted:
         boost_timers = invert_boost_dataV2(boost_timers)
 
     pads_active = boost_timers == 0
 
-    return [pads_active, boost_timers]
+    return [pads_active * pads_scaler, boost_timers]
 
 
 @jit(nopython=True, fastmath=True)
@@ -109,7 +146,7 @@ def encode_playerV2(player, ball, has_flip, demo_timer, inverted):
         player.physics.location.y * (1.0 / 5120.0),
         player.physics.location.z * (1.0 / 2048.0),
         player.physics.rotation.pitch * (1.0 / math.pi),
-        player.physics.rotation.yaw * (1.0 / math.pi),
+        player.physics.rotation.yaw,
         player.physics.rotation.roll * (1.0 / math.pi),
         player.physics.velocity.x * (1.0 / 2300.0),
         player.physics.velocity.y * (1.0 / 2300.0),
@@ -135,10 +172,12 @@ def encode_playerV2(player, ball, has_flip, demo_timer, inverted):
     if inverted:
         array = invert_player_dataV2(array)
 
+    array[4] *= (1.0 / math.pi)  # Yaw scale after invert
+
     return array
 
 
-def encode_all_playersV2(player_index, packet: GameTickPacket, flips, demo_timers, inverted, index):
+def encode_all_playersV2(player_index, packet: GameTickPacket, flips, demo_timers, inverted):
     player_encoding = encode_playerV2(packet.game_cars[player_index], packet.game_ball, flips[packet.game_cars[player_index].name], demo_timers[packet.game_cars[player_index].name], inverted)
 
     same_team = []
@@ -287,7 +326,7 @@ class SeerV2Template(BaseAgent):
         prev_action_encoding = get_action_encodingV2(self.prev_action.reshape(1, -1)).reshape(-1)
         pads_encoding = encode_boostV2(packet, self.inverted)
 
-        player_encodings = encode_all_playersV2(self.index, packet, flips, demo_timers, self.inverted, self.index)
+        player_encodings = encode_all_playersV2(self.index, packet, flips, demo_timers, self.inverted)
 
         obs = np.concatenate([ball, prev_action_encoding, *pads_encoding, *player_encodings]).reshape(1, -1)
 
