@@ -7,3 +7,4 @@ rlbot
 aiohttp
 tqdm
 setuptools
+scikit-learn
