@@ -1,5 +1,6 @@
 import math
 import os
+import time
 
 import numpy as np
 from numba import jit
@@ -67,6 +68,8 @@ def encode_boostV2(packet, inverted):
     for i in range(34):
         boost_timers[i] = packet.game_boosts[i].timer
 
+    pads_active = boost_timers == 0.0
+
     pads_scaler = np.array([
         1.0 / 4.0,
         1.0 / 4.0,
@@ -107,9 +110,9 @@ def encode_boostV2(packet, inverted):
     if inverted:
         boost_timers = invert_boost_dataV2(boost_timers)
 
-    pads_active = boost_timers == 0
+    boost_timers *= pads_scaler
 
-    return [pads_active * pads_scaler, boost_timers]
+    return [pads_active, boost_timers]
 
 
 @jit(nopython=True, fastmath=True)
@@ -248,7 +251,7 @@ class SeerV2Template(BaseAgent):
 
     def reset_states(self):
         self.lstm_states = (torch.zeros(1, 1, self.policy.LSTM.hidden_size, requires_grad=False), torch.zeros(1, 1, self.policy.LSTM.hidden_size, requires_grad=False))
-        self.prev_action = np.array([1.0, 2.0, 2.0, 1.0, 0.0, 0.0, 0.0], dtype=np.float32)
+        self.prev_action = np.array([1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0], dtype=np.float32)
 
     def get_flips(self, packet: GameTickPacket):
 
