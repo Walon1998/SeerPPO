@@ -15,59 +15,56 @@ class SeerNetworkV2(nn.Module):
         self.BOOSTPADS_SIZE = 68
         self.PLAYER_SIZE = 23
 
-        self.BALL_ENC_SIZE = 32
-        self.PREV_ACTION_ENC_SIZE = 32
-        self.PADS_ENC_SIZE = 64
-        self.PLAYER_ENC_SIZE = 64
-        self.OTHER_ENC_SIZE = 128
+        self.OBS_ONES_SIZE = 139
+        self.OBS_TWOS_SIZE = 185
+        self.OBS_THREE_SIZE = 231
 
-        self.ball_encoder = nn.Sequential(
-            nn.Linear(self.BALL_SIZE, self.BALL_ENC_SIZE),
-            self.activation,
-        )
+        self.ENCODER_INTERMEDIATE_SIZE = 256
+        self.LSTM_INPUT_SIZE = 384
 
-        self.previous_action_encoder = nn.Sequential(
-            nn.Linear(self.PREV_ACTION_SIZE, self.PREV_ACTION_ENC_SIZE),
-            self.activation,
-        )
-
-        self.boost_pads_encoder = nn.Sequential(
-            nn.Linear(self.BOOSTPADS_SIZE, self.PADS_ENC_SIZE),
-            self.activation,
-        )
-
-        self.player_encoder = nn.Sequential(
-            nn.Linear(self.PLAYER_SIZE, self.PLAYER_ENC_SIZE),
-            self.activation,
-        )
+        self.LSTM_OUTPUT_SIZE = 384
 
         self.ones_encoder = nn.Sequential(
-            nn.Linear(self.PLAYER_ENC_SIZE, self.OTHER_ENC_SIZE),
+            nn.Linear(self.OBS_ONES_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
+            self.activation,
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
+            self.activation,
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.LSTM_INPUT_SIZE),
             self.activation,
         )
 
         self.twos_encoder = nn.Sequential(
-            nn.Linear(self.PLAYER_ENC_SIZE * 3, self.OTHER_ENC_SIZE),
+            nn.Linear(self.OBS_TWOS_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
+            self.activation,
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
+            self.activation,
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.LSTM_INPUT_SIZE),
             self.activation,
         )
 
         self.threes_encoder = nn.Sequential(
-            nn.Linear(self.PLAYER_ENC_SIZE * 5, self.OTHER_ENC_SIZE),
+            nn.Linear(self.OBS_THREE_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
+            self.activation,
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
+            self.activation,
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.LSTM_INPUT_SIZE),
             self.activation,
         )
 
-        self.LSTM_INPUT_SIZE = self.BALL_ENC_SIZE + self.PREV_ACTION_ENC_SIZE + self.PADS_ENC_SIZE + self.PLAYER_ENC_SIZE + self.OTHER_ENC_SIZE
-        self.LSTM_OUTPUT_SIZE = 256
         self.LSTM = nn.LSTM(self.LSTM_INPUT_SIZE, self.LSTM_OUTPUT_SIZE, 1, batch_first=True)
 
         self.value_network = nn.Sequential(
-            nn.Linear(self.LSTM_OUTPUT_SIZE, 128),
+            nn.Linear(self.LSTM_OUTPUT_SIZE, 256),
+            self.activation,
+            nn.Linear(256, 128),
             self.activation,
             nn.Linear(128, 1),
         )
 
         self.policy_network = nn.Sequential(
-            nn.Linear(self.LSTM_OUTPUT_SIZE, 128),
+            nn.Linear(self.LSTM_OUTPUT_SIZE, 256),
+            self.activation,
+            nn.Linear(256, 128),
             self.activation,
             nn.Linear(128, 18),
         )
@@ -79,32 +76,12 @@ class SeerNetworkV2(nn.Module):
 
         assert obs.shape[-1] in [139, 185, 231]
 
-        index = 0
-        ball_encoding = self.ball_encoder(obs[..., index:index + self.BALL_SIZE])
-        index += self.BALL_SIZE
-        prev_action_encoding = self.previous_action_encoder(obs[..., index:index + self.PREV_ACTION_SIZE])
-        index += self.PREV_ACTION_SIZE
-        boost_pads_encoding = self.boost_pads_encoder(obs[..., index: index + self.BOOSTPADS_SIZE])
-        index += self.BOOSTPADS_SIZE
-
-        players = []
-
-        for i in range(index, obs.shape[-1], self.PLAYER_SIZE):
-            players.append(self.player_encoder(obs[..., i:i + self.PLAYER_SIZE]))
-
-        player_0_encoding = players[0]
-
-        if len(players) == 2:
-            other_encoding = self.ones_encoder(players[1])
-        elif len(players) == 4:
-            other_encoding = self.twos_encoder(torch.cat([players[1], players[2], players[3]], dim=-1))
-        elif len(players) == 6:
-            other_encoding = self.threes_encoder(torch.cat([players[1], players[2], players[3], players[4], players[5]], dim=-1))
-
-        else:
-            raise NotImplementedError
-
-        return torch.cat([ball_encoding, prev_action_encoding, boost_pads_encoding, player_0_encoding, other_encoding], dim=-1)
+        if obs.shape[-1] == 139:
+            return self.ones_encoder(obs)
+        elif obs.shape[-1] == 185:
+            return self.twos_encoder(obs)
+        elif obs.shape[-1] == 231:
+            return self.threes_encoder(obs)
 
     def forward(self, obs, lstm_states, episode_starts, deterministic):
 
@@ -234,3 +211,11 @@ class SeerNetworkV2(nn.Module):
         mask[:, 16:18] = on_ground  # Handbrake
 
         return mask
+
+
+if __name__ == '__main__':
+    n = SeerNetworkV2()
+
+    pytorch_total_params = sum(p.numel() for p in n.parameters())
+
+    print(pytorch_total_params)
