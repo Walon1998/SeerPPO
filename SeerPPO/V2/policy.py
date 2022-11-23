@@ -12,12 +12,12 @@ class SeerNetworkV2(nn.Module):
 
         self.BALL_SIZE = 10
         self.PREV_ACTION_SIZE = 15
-        self.BOOSTPADS_SIZE = 68
+        self.BOOSTPADS_SIZE = 34
         self.PLAYER_SIZE = 23
 
-        self.OBS_ONES_SIZE = 139
-        self.OBS_TWOS_SIZE = 185
-        self.OBS_THREE_SIZE = 231
+        self.OBS_ONES_SIZE = 103
+        self.OBS_TWOS_SIZE = 147
+        self.OBS_THREE_SIZE = 191
 
         self.ENCODER_INTERMEDIATE_SIZE = 256
         self.LSTM_INPUT_SIZE = 384
@@ -74,13 +74,13 @@ class SeerNetworkV2(nn.Module):
 
     def encode(self, obs):
 
-        assert obs.shape[-1] in [139, 185, 231]
+        assert obs.shape[-1] in [103, 147, 191]
 
-        if obs.shape[-1] == 139:
+        if obs.shape[-1] == 103:
             return self.ones_encoder(obs)
-        elif obs.shape[-1] == 185:
+        elif obs.shape[-1] == 147:
             return self.twos_encoder(obs)
-        elif obs.shape[-1] == 231:
+        elif obs.shape[-1] == 191:
             return self.threes_encoder(obs)
 
     def forward(self, obs, lstm_states, episode_starts, deterministic):
@@ -215,6 +215,8 @@ class SeerNetworkV2(nn.Module):
 
 if __name__ == '__main__':
     n = SeerNetworkV2()
+
+    torch.save(n.state_dict(), "0.pt")
 
     pytorch_total_params = sum(p.numel() for p in n.parameters())
 
