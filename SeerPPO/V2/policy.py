@@ -18,9 +18,9 @@ class SeerNetworkV2(nn.Module):
         self.OBS_SIZE = 191
 
         self.ENCODER_INTERMEDIATE_SIZE = 256
-        self.LSTM_INPUT_SIZE = 256
+        self.LSTM_INPUT_SIZE = 384
 
-        self.LSTM_OUTPUT_SIZE = 128
+        self.LSTM_OUTPUT_SIZE = 384
 
         self.encoder = nn.Sequential(
             nn.Linear(self.OBS_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
