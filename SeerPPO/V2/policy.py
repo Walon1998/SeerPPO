@@ -18,9 +18,9 @@ class SeerNetworkV2(nn.Module):
         self.OBS_SIZE = 191
 
         self.ENCODER_INTERMEDIATE_SIZE = 256
-        self.LSTM_INPUT_SIZE = 384
+        self.LSTM_INPUT_SIZE = 256
 
-        self.LSTM_OUTPUT_SIZE = 384
+        self.LSTM_OUTPUT_SIZE = 128
 
         self.encoder = nn.Sequential(
             nn.Linear(self.OBS_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
@@ -202,6 +202,8 @@ if __name__ == '__main__':
     n = SeerNetworkV2()
 
     print(n)
+
+    torch.save(n.state_dict(), "./0.pt")
 
     pytorch_total_params = sum(p.numel() for p in n.parameters())
 
