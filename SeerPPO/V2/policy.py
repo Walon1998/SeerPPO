@@ -24,10 +24,13 @@ class SeerNetworkV2(nn.Module):
 
         self.encoder = nn.Sequential(
             nn.Linear(self.OBS_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
+            nn.BatchNorm1d(self.ENCODER_INTERMEDIATE_SIZE),
             self.activation,
             nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
+            nn.BatchNorm1d(self.ENCODER_INTERMEDIATE_SIZE),
             self.activation,
             nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.LSTM_INPUT_SIZE),
+            nn.BatchNorm1d(self.LSTM_INPUT_SIZE),
             self.activation,
         )
 
@@ -35,16 +38,20 @@ class SeerNetworkV2(nn.Module):
 
         self.value_network = nn.Sequential(
             nn.Linear(self.LSTM_OUTPUT_SIZE + self.LSTM_INPUT_SIZE, 256),
+            nn.BatchNorm1d(256),
             self.activation,
             nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
             self.activation,
             nn.Linear(128, 1),
         )
 
         self.policy_network = nn.Sequential(
             nn.Linear(self.LSTM_OUTPUT_SIZE + self.LSTM_INPUT_SIZE, 256),
+            nn.BatchNorm1d(256),
             self.activation,
             nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
             self.activation,
             nn.Linear(128, 18),
         )
