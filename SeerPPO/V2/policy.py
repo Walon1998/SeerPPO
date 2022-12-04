@@ -140,7 +140,12 @@ class SeerNetworkV2(nn.Module):
 
         lstm_states = (lstm_states[0].swapaxes(0, 1), lstm_states[1].swapaxes(0, 1))
 
-        pre_lstm = self.encode(obs)
+        lstm_unroll_length = obs.shape[1]
+        batch_size = obs.shape[0]
+
+        pre_lstm = self.encode(obs.flatten(start_dim=0, end_dim=1))
+
+        pre_lstm = pre_lstm.reshape(batch_size, lstm_unroll_length, self.LSTM_INPUT_SIZE)
 
         lstm_output = []
 
