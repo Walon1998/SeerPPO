@@ -8,7 +8,7 @@ class SeerNetworkV2(nn.Module):
     def __init__(self):
         super(SeerNetworkV2, self).__init__()
 
-        self.activation = nn.LeakyReLU()
+        self.activation = nn.LeakyReLU(inplace=True)
 
         self.BALL_SIZE = 10
         self.PREV_ACTION_SIZE = 15
