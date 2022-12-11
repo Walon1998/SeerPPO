@@ -61,9 +61,9 @@ class SeerNetworkV2(nn.Module):
 
     def encode(self, obs):
 
-        assert obs.shape[-1] in [191]
+        assert obs.shape[-1] in [103]
 
-        if obs.shape[-1] == 191:
+        if obs.shape[-1] == 103:
             return self.encoder(obs)
 
     def forward(self, obs, lstm_states, episode_starts, deterministic):
