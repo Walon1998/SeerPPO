@@ -15,7 +15,7 @@ class SeerNetworkV2(nn.Module):
         self.BOOSTPADS_SIZE = 34
         self.PLAYER_SIZE = 23
 
-        self.OBS_SIZE = 191
+        self.OBS_SIZE = 103
 
         self.ENCODER_INTERMEDIATE_SIZE = 256
         self.LSTM_INPUT_SIZE = 384
