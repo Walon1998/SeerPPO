@@ -267,7 +267,7 @@ class SeerV2Template(BaseAgent):
 
         player_encodings = encode_all_playersV2(self.index, packet, flips, self.inverted)
 
-        obs = np.concatenate([ball, prev_action_encoding, pads_encoding, *player_encodings])
+        obs = np.concatenate([ball, prev_action_encoding, pads_encoding, *player_encodings]).reshape(1, -1)
         # obs = np.pad(obs, (0, 191 - obs.shape[-1]), 'constant').reshape(1, -1)
 
 
