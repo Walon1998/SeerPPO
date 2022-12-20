@@ -18,9 +18,9 @@ class SeerNetworkV2(nn.Module):
         self.OBS_SIZE = 103
 
         self.ENCODER_INTERMEDIATE_SIZE = 256
-        self.LSTM_INPUT_SIZE = 384
+        self.LSTM_INPUT_SIZE = 256
 
-        self.LSTM_OUTPUT_SIZE = 384
+        self.LSTM_OUTPUT_SIZE = 256
 
         self.encoder = nn.Sequential(
             nn.Linear(self.OBS_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
@@ -37,7 +37,7 @@ class SeerNetworkV2(nn.Module):
         self.LSTM = nn.LSTM(self.LSTM_INPUT_SIZE, self.LSTM_OUTPUT_SIZE, 1, batch_first=True)
 
         self.value_network = nn.Sequential(
-            nn.Linear(self.LSTM_OUTPUT_SIZE + self.LSTM_INPUT_SIZE, 256),
+            nn.Linear(self.LSTM_OUTPUT_SIZE, 256),
             nn.BatchNorm1d(256),
             self.activation,
             nn.Linear(256, 128),
@@ -47,7 +47,7 @@ class SeerNetworkV2(nn.Module):
         )
 
         self.policy_network = nn.Sequential(
-            nn.Linear(self.LSTM_OUTPUT_SIZE + self.LSTM_INPUT_SIZE, 256),
+            nn.Linear(self.LSTM_OUTPUT_SIZE, 256),
             nn.BatchNorm1d(256),
             self.activation,
             nn.Linear(256, 128),
@@ -81,7 +81,7 @@ class SeerNetworkV2(nn.Module):
 
         x = x.squeeze(dim=1)
 
-        x = torch.cat([x, pre_lstm], dim=-1)
+        x += pre_lstm
 
         value = self.value_network(x)
         policy_logits = self.policy_network(x)
@@ -104,7 +104,7 @@ class SeerNetworkV2(nn.Module):
         x, lstm_states = self.LSTM(pre_lstm.unsqueeze(1), lstm_states)
         x = x.squeeze(dim=1)
 
-        x = torch.cat([x, pre_lstm], dim=-1)
+        x += pre_lstm
 
         value = self.value_network(x)
         return value
@@ -122,7 +122,7 @@ class SeerNetworkV2(nn.Module):
 
         x = x.squeeze(dim=1)
 
-        x = torch.cat([x, pre_lstm], dim=-1)
+        x += pre_lstm
 
         policy_logits = self.policy_network(x)
         mask = self.create_mask(obs, policy_logits.shape[0])
@@ -162,7 +162,7 @@ class SeerNetworkV2(nn.Module):
 
         x = torch.flatten(torch.cat(lstm_output, dim=1), start_dim=0, end_dim=1)
 
-        x = torch.cat([x, torch.flatten(pre_lstm, start_dim=0, end_dim=1)], dim=-1)
+        x += torch.flatten(pre_lstm, start_dim=0, end_dim=1)
 
         actions = torch.flatten(actions, start_dim=0, end_dim=1)
 
