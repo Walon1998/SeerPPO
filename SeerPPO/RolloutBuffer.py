@@ -117,15 +117,15 @@ class RolloutBuffer:
 
         stack_size = int(self.buffer_size / self.lstm_unroll_length)
 
-        new_obs = self.observations.transpose((1, 0, 2)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.observation_space)
-        new_action = self.actions.transpose((1, 0, 2)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.action_space)
-        new_episode_starts = self.episode_starts.transpose((1, 0)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length)
-        new_log_prob = self.log_prob.transpose((1, 0)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length)
-        new_advantages = self.advantages.transpose((1, 0)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length)
-        new_returns = self.returns.transpose((1, 0)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length)
+        new_obs = self.observations.transpose((1, 0, 2)).reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.observation_space)
+        new_action = self.actions.transpose((1, 0, 2)).reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.action_space)
+        new_episode_starts = self.episode_starts.transpose((1, 0)).reshape(self.n_envs * stack_size, self.lstm_unroll_length)
+        new_log_prob = self.log_prob.transpose((1, 0)).reshape(self.n_envs * stack_size, self.lstm_unroll_length)
+        new_advantages = self.advantages.transpose((1, 0)).reshape(self.n_envs * stack_size, self.lstm_unroll_length)
+        new_returns = self.returns.transpose((1, 0)).reshape(self.n_envs * stack_size, self.lstm_unroll_length)
 
-        lstm_states_0 = self.lstm_states_0.transpose((1, 0, 2)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.lstm_hidden_size)
-        lstm_states_1 = self.lstm_states_1.transpose((1, 0, 2)).copy().reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.lstm_hidden_size)
+        lstm_states_0 = self.lstm_states_0.transpose((1, 0, 2)).reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.lstm_hidden_size)
+        lstm_states_1 = self.lstm_states_1.transpose((1, 0, 2)).reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.lstm_hidden_size)
 
         lstm_states_0 = np.expand_dims(lstm_states_0[:, 0, :], axis=1)
         lstm_states_1 = np.expand_dims(lstm_states_1[:, 0, :], axis=1)
