@@ -14,9 +14,11 @@ class RolloutBufferSamples(NamedTuple):
     returns: Union[np.ndarray, torch.Tensor]
     lstm_states: Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]
     episode_starts: Union[np.ndarray, torch.Tensor]
-    reward_mean: np.ndarray
-    ep_len_mean: np.ndarray
+    ep_returns: np.ndarray
+    ep_lens: np.ndarray
     r2: np.ndarray
+    reward_mean: Union[float, np.ndarray]
+    reward_std: Union[float, np.ndarray]
 
 
 spec = [
@@ -66,6 +68,8 @@ class RolloutBuffer:
         self.gamma = gamma
         self.gae_lambda = gae_lambda
         self.pos = 0
+        self.reward_mean = None
+        self.reward_std = None
 
         assert self.buffer_size % self.lstm_unroll_length == 0
 
@@ -98,7 +102,12 @@ class RolloutBuffer:
     def is_full(self):
         return self.pos == self.buffer_size
 
-    def compute_returns_and_advantage(self, last_values, dones):
+    def compute_returns_and_advantage(self, last_values, dones, reward_mean, reward_std):
+
+        self.reward_mean = np.mean(self.rewards)
+        self.reward_std = np.std(self.rewards)
+
+        self.rewards = (self.rewards - reward_mean) / (reward_std + 1e-8)
 
         last_gae_lam = np.zeros(1)
         for step in range(self.buffer_size - 1, -1, -1):
@@ -142,7 +151,9 @@ class RolloutBuffer:
             returns=new_returns,
             lstm_states=lstm_states,
             episode_starts=new_episode_starts,
-            reward_mean=monitor_data[0],
-            ep_len_mean=monitor_data[1],
+            ep_returns=monitor_data[0],
+            ep_lens=monitor_data[1],
             r2=r2,
+            reward_mean=self.reward_mean,
+            reward_std=self.reward_std
         )
