@@ -104,8 +104,14 @@ class RolloutBuffer:
 
     def compute_returns_and_advantage(self, last_values, dones, reward_mean, reward_std):
 
-        self.reward_mean = np.mean(self.rewards)
-        self.reward_std = np.std(self.rewards)
+        for step in range(self.buffer_size - 1, -1, -1):
+            if step == self.buffer_size - 1:
+                self.returns[step] = self.rewards[step] + self.gamma * last_values
+            else:
+                self.returns[step] = self.rewards[step] + self.gamma * self.returns[step + 1]
+
+        self.reward_mean = np.mean(self.returns)
+        self.reward_std = np.std(self.returns)
 
         self.rewards = (self.rewards - reward_mean) / (reward_std + 1e-8)
 
@@ -120,7 +126,6 @@ class RolloutBuffer:
             delta = self.rewards[step] + self.gamma * next_values * next_non_terminal - self.values[step]
             last_gae_lam = delta + self.gamma * self.gae_lambda * next_non_terminal * last_gae_lam
             self.advantages[step] = last_gae_lam
-        self.returns = self.advantages + self.values
 
     def get_samples(self, monitor_data):
 
