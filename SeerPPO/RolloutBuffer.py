@@ -68,8 +68,6 @@ class RolloutBuffer:
         self.gamma = gamma
         self.gae_lambda = gae_lambda
         self.pos = 0
-        self.reward_mean = None
-        self.reward_std = None
 
         assert self.buffer_size % self.lstm_unroll_length == 0
 
@@ -102,18 +100,7 @@ class RolloutBuffer:
     def is_full(self):
         return self.pos == self.buffer_size
 
-    def compute_returns_and_advantage(self, last_values, dones, reward_mean, reward_std):
-
-        for step in range(self.buffer_size - 1, -1, -1):
-            if step == self.buffer_size - 1:
-                self.returns[step] = self.rewards[step] + self.gamma * last_values
-            else:
-                self.returns[step] = self.rewards[step] + self.gamma * self.returns[step + 1]
-
-        self.reward_mean = np.mean(self.returns)
-        self.reward_std = np.std(self.returns)
-
-        self.rewards = (self.rewards - reward_mean) / (reward_std + 1e-8)
+    def compute_returns_and_advantage(self, last_values, dones):
 
         last_gae_lam = np.zeros(1)
         for step in range(self.buffer_size - 1, -1, -1):
@@ -126,8 +113,9 @@ class RolloutBuffer:
             delta = self.rewards[step] + self.gamma * next_values * next_non_terminal - self.values[step]
             last_gae_lam = delta + self.gamma * self.gae_lambda * next_non_terminal * last_gae_lam
             self.advantages[step] = last_gae_lam
+        self.returns = self.advantages + self.values
 
-    def get_samples(self, monitor_data):
+    def get_samples(self, monitor_data, reward_mean, reward_var):
 
         stack_size = int(self.buffer_size / self.lstm_unroll_length)
 
@@ -159,6 +147,6 @@ class RolloutBuffer:
             ep_returns=monitor_data[0],
             ep_lens=monitor_data[1],
             r2=r2,
-            reward_mean=self.reward_mean,
-            reward_std=self.reward_std
+            reward_mean=reward_mean,
+            reward_std=reward_var
         )
