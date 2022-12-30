@@ -166,6 +166,20 @@ def encode_all_playersV2(player_index, packet: GameTickPacket, flips, inverted):
     return encodings
 
 
+def encode_gamestate(packet, inverted):
+    dif = packet.teams[0].score - packet.teams[1].score
+    timer = packet.game_info.game_time_remaining
+    overtime = packet.game_info.is_overtime
+
+    if inverted:
+        dif *= -1
+
+    if overtime:
+        timer = 0
+
+    return [dif / 10, timer / 300, overtime]
+
+
 class SeerV2Template(BaseAgent):
     def __init__(self, name, team, index, filename):
         super().__init__(name, team, index)
@@ -261,13 +275,15 @@ class SeerV2Template(BaseAgent):
     def build_obs(self, packet):
         flips = self.get_flips(packet)
 
+        game_state = encode_gamestate(packet, self.inverted)
+        print(game_state)
         ball = encode_ballV2(packet, self.inverted)
         prev_action_encoding = get_action_encodingV2(self.prev_action.reshape(1, -1)).reshape(-1)
         pads_encoding = encode_boostV2(packet, self.inverted)
 
         player_encodings = encode_all_playersV2(self.index, packet, flips, self.inverted)
 
-        obs = np.concatenate([ball, prev_action_encoding, pads_encoding, *player_encodings]).reshape(1, -1)
+        obs = np.concatenate([ball, prev_action_encoding, pads_encoding, *player_encodings, game_state]).reshape(1, -1)
 
         obs = torch.tensor(obs, dtype=torch.float32)
         self.compiled = True
