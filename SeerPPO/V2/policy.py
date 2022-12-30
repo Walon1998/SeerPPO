@@ -15,7 +15,7 @@ class SeerNetworkV2(nn.Module):
         self.BOOSTPADS_SIZE = 34
         self.PLAYER_SIZE = 23
 
-        self.OBS_SIZE = 103
+        self.OBS_SIZE = 106
 
         self.ENCODER_INTERMEDIATE_SIZE = 256
         self.LSTM_INPUT_SIZE = 256
@@ -61,9 +61,9 @@ class SeerNetworkV2(nn.Module):
 
     def encode(self, obs):
 
-        assert obs.shape[-1] in [103]
+        assert obs.shape[-1] in [106]
 
-        if obs.shape[-1] == 103:
+        if obs.shape[-1] == 106:
             return self.encoder(obs)
 
     def forward(self, obs, lstm_states, episode_starts, deterministic):
