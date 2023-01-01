@@ -15,7 +15,7 @@ class SeerNetworkV2(nn.Module):
         self.BOOSTPADS_SIZE = 34
         self.PLAYER_SIZE = 23
 
-        self.OBS_SIZE = 106
+        self.OBS_SIZE = 142
 
         self.ENCODER_INTERMEDIATE_SIZE = 256
         self.LSTM_INPUT_SIZE = 256
@@ -24,13 +24,10 @@ class SeerNetworkV2(nn.Module):
 
         self.encoder = nn.Sequential(
             nn.Linear(self.OBS_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
-            nn.BatchNorm1d(self.ENCODER_INTERMEDIATE_SIZE),
             self.activation,
             nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
-            nn.BatchNorm1d(self.ENCODER_INTERMEDIATE_SIZE),
             self.activation,
             nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.LSTM_INPUT_SIZE),
-            nn.BatchNorm1d(self.LSTM_INPUT_SIZE),
             self.activation,
         )
 
@@ -38,20 +35,16 @@ class SeerNetworkV2(nn.Module):
 
         self.value_network = nn.Sequential(
             nn.Linear(self.LSTM_OUTPUT_SIZE, 256),
-            nn.BatchNorm1d(256),
             self.activation,
             nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
             self.activation,
             nn.Linear(128, 1),
         )
 
         self.policy_network = nn.Sequential(
             nn.Linear(self.LSTM_OUTPUT_SIZE, 256),
-            nn.BatchNorm1d(256),
             self.activation,
             nn.Linear(256, 128),
-            nn.BatchNorm1d(128),
             self.activation,
             nn.Linear(128, 18),
         )
@@ -61,9 +54,9 @@ class SeerNetworkV2(nn.Module):
 
     def encode(self, obs):
 
-        assert obs.shape[-1] in [106]
+        assert obs.shape[-1] in [142]
 
-        if obs.shape[-1] == 106:
+        if obs.shape[-1] == 142:
             return self.encoder(obs)
 
     def forward(self, obs, lstm_states, episode_starts, deterministic):
@@ -80,8 +73,6 @@ class SeerNetworkV2(nn.Module):
         x, lstm_states = self.LSTM(pre_lstm.unsqueeze(1), lstm_states)
 
         x = x.squeeze(dim=1)
-
-        x += pre_lstm
 
         value = self.value_network(x)
         policy_logits = self.policy_network(x)
@@ -104,8 +95,6 @@ class SeerNetworkV2(nn.Module):
         x, lstm_states = self.LSTM(pre_lstm.unsqueeze(1), lstm_states)
         x = x.squeeze(dim=1)
 
-        x += pre_lstm
-
         value = self.value_network(x)
         return value
 
@@ -121,8 +110,6 @@ class SeerNetworkV2(nn.Module):
         x, lstm_states = self.LSTM(pre_lstm.unsqueeze(1), lstm_states)
 
         x = x.squeeze(dim=1)
-
-        x += pre_lstm
 
         policy_logits = self.policy_network(x)
         mask = self.create_mask(obs, policy_logits.shape[0])
@@ -140,17 +127,12 @@ class SeerNetworkV2(nn.Module):
 
         lstm_states = (lstm_states[0].swapaxes(0, 1), lstm_states[1].swapaxes(0, 1))
 
-        lstm_unroll_length = obs.shape[1]
-        batch_size = obs.shape[0]
-
-        pre_lstm = self.encode(obs.flatten(start_dim=0, end_dim=1))
-
-        pre_lstm = pre_lstm.reshape(batch_size, lstm_unroll_length, self.LSTM_INPUT_SIZE)
+        x = self.encode(obs)
 
         lstm_output = []
 
         for i in range(16):
-            features_i = pre_lstm[:, i, :].unsqueeze(dim=1)
+            features_i = x[:, i, :].unsqueeze(dim=1)
             episode_start_i = episode_starts[:, i]
             lstm_reset = (1.0 - episode_start_i).view(1, -1, 1)
 
@@ -161,8 +143,6 @@ class SeerNetworkV2(nn.Module):
             lstm_output += [hidden]
 
         x = torch.flatten(torch.cat(lstm_output, dim=1), start_dim=0, end_dim=1)
-
-        x += torch.flatten(pre_lstm, start_dim=0, end_dim=1)
 
         actions = torch.flatten(actions, start_dim=0, end_dim=1)
 
