@@ -10,11 +10,6 @@ class SeerNetworkV2(nn.Module):
 
         self.activation = nn.LeakyReLU(inplace=True)
 
-        self.BALL_SIZE = 10
-        self.PREV_ACTION_SIZE = 15
-        self.BOOSTPADS_SIZE = 34
-        self.PLAYER_SIZE = 23
-
         self.OBS_SIZE = 142
 
         self.ENCODER_INTERMEDIATE_SIZE = 256
@@ -158,11 +153,9 @@ class SeerNetworkV2(nn.Module):
 
     def create_mask(self, obs, size):
 
-        before = self.BALL_SIZE + self.BOOSTPADS_SIZE + self.PREV_ACTION_SIZE
-
-        has_boost = obs[..., before + 13] > 0.0
-        on_ground = obs[..., before + 14]
-        has_flip = obs[..., before + 15]
+        has_boost = obs[..., 13] > 0.0
+        on_ground = obs[..., 14]
+        has_flip = obs[..., 15]
 
         in_air = torch.logical_not(on_ground)
         mask = torch.ones((size, 18), dtype=torch.bool, device=obs.device)

@@ -62,42 +62,43 @@ def invert_boost_dataV2(array):
     assert array.shape[0] == 34
     return array[::-1]
 
+
 pads_scaler = np.array([
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 10.0,
-        1.0 / 10.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 10.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 10.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 10.0,
-        1.0 / 10.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-        1.0 / 4.0,
-    ], dtype=np.float32)
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 10.0,
+    1.0 / 10.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 10.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 10.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 10.0,
+    1.0 / 10.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+    1.0 / 4.0,
+], dtype=np.float32)
 
 
 def encode_boostV2(packet, inverted):
@@ -345,7 +346,7 @@ class SeerV2Template(BaseAgent):
 
         player_encodings = encode_all_playersV2(self.index, packet, flips, demo_timers, self.inverted)
 
-        obs = np.concatenate([ball, prev_action_encoding, *pads_encoding, *player_encodings, game_state]).reshape(1, -1)
+        obs = np.concatenate([*player_encodings, ball, prev_action_encoding, *pads_encoding, game_state]).reshape(1, -1)
 
         obs = torch.tensor(obs, dtype=torch.float32)
         self.compiled = True
