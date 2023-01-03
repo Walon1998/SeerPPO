@@ -12,37 +12,11 @@ class RolloutBufferSamples(NamedTuple):
     log_prob: Union[np.ndarray, torch.Tensor]
     advantages: Union[np.ndarray, torch.Tensor]
     returns: Union[np.ndarray, torch.Tensor]
-    lstm_states: Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]
-    episode_starts: Union[np.ndarray, torch.Tensor]
     ep_returns: np.ndarray
     ep_lens: np.ndarray
     r2: np.ndarray
     reward_mean: Union[float, np.ndarray]
     reward_std: Union[float, np.ndarray]
-
-
-spec = [
-    ('buffer_size', int32),
-    ('observation_space', int32),
-    ('action_space', int32),
-    ('n_envs', int32),
-    ('lstm_unroll_length', int32),
-    ('lstm_hidden_size', int32),
-    ('gamma', float32),
-    ('gae_lambda', float32),
-    ('pos', int32),
-    ('observations', float32[:, :, :]),
-    ('actions', float32[:, :, :]),
-    ('rewards', float32[:, :]),
-    ('episode_starts', float32[:, :]),
-    ('values', float32[:, :]),
-    ('log_prob', float32[:, :]),
-    ('lstm_states_0', float32[:, :, :]),
-    ('lstm_states_1', float32[:, :, :]),
-    ('advantages', float32[:, :]),
-    ('returns', float32[:, :]),
-
-]
 
 
 @jit(fastmath=True)
@@ -58,18 +32,14 @@ def r2_score(y_true, y_pred):
 
 # @jitclass(spec)
 class RolloutBuffer:
-    def __init__(self, buffer_size, observation_space, action_space, n_envs, lstm_hidden_size, lstm_unroll_length, gamma, gae_lambda):
+    def __init__(self, buffer_size, observation_space, action_space, n_envs, gamma, gae_lambda):
         self.buffer_size = buffer_size
         self.observation_space = observation_space
         self.action_space = action_space
         self.n_envs = n_envs
-        self.lstm_unroll_length = lstm_unroll_length
-        self.lstm_hidden_size = lstm_hidden_size
         self.gamma = gamma
         self.gae_lambda = gae_lambda
         self.pos = 0
-
-        assert self.buffer_size % self.lstm_unroll_length == 0
 
         self.observations = np.empty((self.buffer_size, self.n_envs, self.observation_space), dtype=np.float32)
         self.actions = np.empty((self.buffer_size, self.n_envs, self.action_space), dtype=np.float32)
@@ -77,23 +47,19 @@ class RolloutBuffer:
         self.episode_starts = np.empty((self.buffer_size, self.n_envs), dtype=np.float32)
         self.values = np.empty((self.buffer_size, self.n_envs), dtype=np.float32)
         self.log_prob = np.empty((self.buffer_size, self.n_envs), dtype=np.float32)
-        self.lstm_states_0 = np.empty((self.buffer_size, self.n_envs, self.lstm_hidden_size), dtype=np.float32)
-        self.lstm_states_1 = np.empty((self.buffer_size, self.n_envs, self.lstm_hidden_size), dtype=np.float32)
         self.advantages = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.returns = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
 
     def reset(self):
         self.pos = 0
 
-    def add(self, obs, action, reward, episode_start, value, log_prob, lstm_states_0, lstm_states_1):
+    def add(self, obs, action, reward, episode_start, value, log_prob):
         self.observations[self.pos] = obs
         self.actions[self.pos] = action
         self.rewards[self.pos] = reward
         self.episode_starts[self.pos] = episode_start
         self.values[self.pos] = value
         self.log_prob[self.pos] = log_prob
-        self.lstm_states_0[self.pos] = lstm_states_0
-        self.lstm_states_1[self.pos] = lstm_states_1
 
         self.pos += 1
 
@@ -117,22 +83,11 @@ class RolloutBuffer:
 
     def get_samples(self, monitor_data, reward_mean, reward_var):
 
-        stack_size = int(self.buffer_size / self.lstm_unroll_length)
-
-        new_obs = self.observations.transpose((1, 0, 2)).reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.observation_space)
-        new_action = self.actions.transpose((1, 0, 2)).reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.action_space)
-        new_episode_starts = self.episode_starts.transpose((1, 0)).reshape(self.n_envs * stack_size, self.lstm_unroll_length)
-        new_log_prob = self.log_prob.transpose((1, 0)).reshape(self.n_envs * stack_size, self.lstm_unroll_length)
-        new_advantages = self.advantages.transpose((1, 0)).reshape(self.n_envs * stack_size, self.lstm_unroll_length)
-        new_returns = self.returns.transpose((1, 0)).reshape(self.n_envs * stack_size, self.lstm_unroll_length)
-
-        lstm_states_0 = self.lstm_states_0.transpose((1, 0, 2)).reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.lstm_hidden_size)
-        lstm_states_1 = self.lstm_states_1.transpose((1, 0, 2)).reshape(self.n_envs * stack_size, self.lstm_unroll_length, self.lstm_hidden_size)
-
-        lstm_states_0 = np.expand_dims(lstm_states_0[:, 0, :], axis=1)
-        lstm_states_1 = np.expand_dims(lstm_states_1[:, 0, :], axis=1)
-
-        lstm_states = lstm_states_0, lstm_states_1
+        new_obs = self.observations.transpose((1, 0, 2)).reshape(-1, self.observation_space)
+        new_action = self.actions.transpose((1, 0, 2)).reshape(-1, self.action_space)
+        new_log_prob = self.log_prob.transpose((1, 0)).reshape(-1, 1)
+        new_advantages = self.advantages.transpose((1, 0)).reshape(-1, 1)
+        new_returns = self.returns.transpose((1, 0)).reshape(-1, 1)
 
         r2 = r2_score(self.values.ravel(), self.returns.ravel())
 
@@ -142,8 +97,6 @@ class RolloutBuffer:
             log_prob=new_log_prob,
             advantages=new_advantages,
             returns=new_returns,
-            lstm_states=lstm_states,
-            episode_starts=new_episode_starts,
             ep_returns=monitor_data[0],
             ep_lens=monitor_data[1],
             r2=r2,

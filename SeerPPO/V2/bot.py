@@ -30,19 +30,12 @@ class Agent:
         self.policy.load_state_dict(torch.load(self.filename, map_location=torch.device('cpu')))
         self.policy.eval()
 
-        self.episode_starts = torch.zeros(1, dtype=torch.float32, requires_grad=False)
-        self.lstm_states = None
-        self.reset()
-
         print("Ready: {}".format(self.filename))
-
-    def reset(self):
-        self.lstm_states = (torch.zeros(1, 1, self.policy.LSTM.hidden_size, requires_grad=False), torch.zeros(1, 1, self.policy.LSTM.hidden_size, requires_grad=False))
 
     def act(self, state):
         with torch.no_grad():
             state = torch.from_numpy(state)
-            action, self.lstm_states = self.policy.predict_actions(state, self.lstm_states, self.episode_starts, True)
+            action = self.policy.predict_actions(state, True)
         return action.numpy()
 
 
@@ -72,7 +65,6 @@ class SeerV2Template(BaseAgent):
         self.controls = SimpleControllerState()
         self.action = np.zeros(8)
         self.update_action = True
-        self.agent.reset()
 
     def get_output(self, packet: GameTickPacket) -> SimpleControllerState:
         cur_time = packet.game_info.seconds_elapsed
@@ -82,13 +74,6 @@ class SeerV2Template(BaseAgent):
         ticks_elapsed = round(delta * 120)
         self.ticks += ticks_elapsed
         self.game_state.decode(packet, ticks_elapsed)
-
-        if not packet.game_info.is_round_active:
-            self.ticks = self.tick_skip  # So we take an action the first tick
-            self.prev_time = 0
-            self.action = np.zeros(8)
-            self.update_action = True
-            self.agent.reset()
 
         if self.update_action:
             self.update_action = False

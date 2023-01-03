@@ -13,23 +13,18 @@ class SeerNetworkV2(nn.Module):
         self.OBS_SIZE = 142
 
         self.ENCODER_INTERMEDIATE_SIZE = 256
-        self.LSTM_INPUT_SIZE = 256
-
-        self.LSTM_OUTPUT_SIZE = 256
 
         self.encoder = nn.Sequential(
             nn.Linear(self.OBS_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
             self.activation,
             nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
             self.activation,
-            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.LSTM_INPUT_SIZE),
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
             self.activation,
         )
 
-        self.LSTM = nn.LSTM(self.LSTM_INPUT_SIZE, self.LSTM_OUTPUT_SIZE, 1, batch_first=True)
-
         self.value_network = nn.Sequential(
-            nn.Linear(self.LSTM_OUTPUT_SIZE, 256),
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, 256),
             self.activation,
             nn.Linear(256, 128),
             self.activation,
@@ -37,7 +32,7 @@ class SeerNetworkV2(nn.Module):
         )
 
         self.policy_network = nn.Sequential(
-            nn.Linear(self.LSTM_OUTPUT_SIZE, 256),
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, 256),
             self.activation,
             nn.Linear(256, 128),
             self.activation,
@@ -54,105 +49,53 @@ class SeerNetworkV2(nn.Module):
         if obs.shape[-1] == 142:
             return self.encoder(obs)
 
-    def forward(self, obs, lstm_states, episode_starts, deterministic):
+    def forward(self, obs, deterministic):
 
         if self.HUGE_NEG is None:
             self.HUGE_NEG = torch.tensor(-1e8, dtype=torch.float32).to(obs.device)
 
         # Rollout
-        pre_lstm = self.encode(obs)
-
-        lstm_reset = (1.0 - episode_starts).view(1, -1, 1)
-
-        lstm_states = (lstm_states[0] * lstm_reset, lstm_states[1] * lstm_reset)
-        x, lstm_states = self.LSTM(pre_lstm.unsqueeze(1), lstm_states)
-
-        x = x.squeeze(dim=1)
-
-        x += pre_lstm
+        x = self.encode(obs)
 
         value = self.value_network(x)
         policy_logits = self.policy_network(x)
-        mask = self.create_mask(obs, policy_logits.shape[0])
+        mask = self.create_mask(obs)
         policy_logits = torch.where(mask, policy_logits, self.HUGE_NEG)
         self.distribution.proba_distribution(policy_logits)
         self.distribution.apply_mask(mask)
 
         actions = self.distribution.get_actions(deterministic=deterministic)
         log_prob = self.distribution.log_prob(actions)
-        return actions, value, log_prob, lstm_states
+        return actions, value, log_prob,
 
-    def predict_value(self, obs, lstm_states, episode_starts):
+    def predict_value(self, obs):
         # Rollout
-        pre_lstm = self.encode(obs)
-
-        lstm_reset = (1.0 - episode_starts).view(1, -1, 1)
-
-        lstm_states = (lstm_states[0] * lstm_reset, lstm_states[1] * lstm_reset)
-        x, lstm_states = self.LSTM(pre_lstm.unsqueeze(1), lstm_states)
-        x = x.squeeze(dim=1)
-
-        x += pre_lstm
-
+        x = self.encode(obs)
         value = self.value_network(x)
         return value
 
-    def predict_actions(self, obs, lstm_states, episode_starts, deterministic):
+    def predict_actions(self, obs, deterministic):
         if self.HUGE_NEG is None:
             self.HUGE_NEG = torch.tensor(-1e8, dtype=torch.float32).to(obs.device)
 
             # Rollout
-        pre_lstm = self.encode(obs)
-        lstm_reset = (1.0 - episode_starts).view(1, -1, 1)
-
-        lstm_states = (lstm_states[0] * lstm_reset, lstm_states[1] * lstm_reset)
-        x, lstm_states = self.LSTM(pre_lstm.unsqueeze(1), lstm_states)
-
-        x = x.squeeze(dim=1)
-
-        x += pre_lstm
+        x = self.encode(obs)
 
         policy_logits = self.policy_network(x)
-        mask = self.create_mask(obs, policy_logits.shape[0])
+        mask = self.create_mask(obs)
         policy_logits = torch.where(mask, policy_logits, self.HUGE_NEG)
         self.distribution.proba_distribution(policy_logits)
         self.distribution.apply_mask(mask)
 
         actions = self.distribution.get_actions(deterministic=deterministic)
-        return actions, lstm_states
+        return actions
 
-    def evaluate_actions(self, obs, actions, lstm_states, episode_starts, mask):
+    def evaluate_actions(self, obs, actions, mask):
 
         if self.HUGE_NEG is None:
             self.HUGE_NEG = torch.tensor(-1e8, dtype=torch.float32).to(obs.device)
 
-        lstm_states = (lstm_states[0].swapaxes(0, 1), lstm_states[1].swapaxes(0, 1))
-
-        lstm_unroll_length = obs.shape[1]
-        batch_size = obs.shape[0]
-
-        pre_lstm = self.encode(obs.flatten(start_dim=0, end_dim=1))
-
-        pre_lstm = pre_lstm.reshape(batch_size, lstm_unroll_length, self.LSTM_INPUT_SIZE)
-
-        lstm_output = []
-
-        for i in range(16):
-            features_i = pre_lstm[:, i, :].unsqueeze(dim=1)
-            episode_start_i = episode_starts[:, i]
-            lstm_reset = (1.0 - episode_start_i).view(1, -1, 1)
-
-            hidden, lstm_states = self.LSTM(features_i, (
-                lstm_reset * lstm_states[0],
-                lstm_reset * lstm_states[1],
-            ))
-            lstm_output += [hidden]
-
-        x = torch.flatten(torch.cat(lstm_output, dim=1), start_dim=0, end_dim=1)
-
-        x += torch.flatten(pre_lstm, start_dim=0, end_dim=1)
-
-        actions = torch.flatten(actions, start_dim=0, end_dim=1)
+        x = self.encode(obs)
 
         value = self.value_network(x)
         policy_logits = self.policy_network(x)
@@ -164,14 +107,14 @@ class SeerNetworkV2(nn.Module):
 
         return value, log_prob, entropy
 
-    def create_mask(self, obs, size):
+    def create_mask(self, obs):
 
-        has_boost = obs[..., 13] > 0.0
-        on_ground = obs[..., 14]
-        has_flip = obs[..., 15]
+        has_boost = obs[:, 13] > 0.0
+        on_ground = obs[:, 14]
+        has_flip = obs[:, 15]
 
         in_air = torch.logical_not(on_ground)
-        mask = torch.ones((size, 18), dtype=torch.bool, device=obs.device)
+        mask = torch.ones((obs.shape[0], 18), dtype=torch.bool, device=obs.device)
 
         # mask[:, 0:3] = 1.0  # Throttle, always possible
         # mask[:, 3:6] = 1.0  # Steer yaw, always possible
