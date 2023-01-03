@@ -84,6 +84,10 @@ class SeerV2Template(BaseAgent):
         self.game_state.decode(packet, ticks_elapsed)
 
         if not packet.game_info.is_round_active:
+            self.ticks = self.tick_skip  # So we take an action the first tick
+            self.prev_time = 0
+            self.action = np.zeros(8)
+            self.update_action = True
             self.agent.reset()
 
         if self.update_action:

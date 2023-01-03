@@ -76,12 +76,18 @@ def _encode_player(player: PlayerData, inverted: bool, demo_timer: float, ball):
     ball_diff_z = ball.position[2] - player_car.position[2]
     ball_diff_norm = np.linalg.norm([ball_diff_x, ball_diff_y, ball_diff_z])
 
+    yaw = player_car.yaw()
+    tol = 1e-4
+    if yaw > math.pi:
+        yaw -= 2 * math.pi
+    assert -math.pi - tol <= yaw <= math.pi + tol
+
     array = np.array([
         player_car.position[0] * (1.0 / 4096.0),
         player_car.position[1] * (1.0 / 5120.0),
         player_car.position[2] * (1.0 / 2048.0),
         player_car.pitch() * (1.0 / math.pi),
-        player_car.yaw() * (1.0 / math.pi),
+        yaw * (1.0 / math.pi),
         player_car.roll() * (1.0 / math.pi),
         player_car.linear_velocity[0] * (1.0 / 2300.0),
         player_car.linear_velocity[1] * (1.0 / 2300.0),
@@ -221,7 +227,6 @@ class SeerObsV2(ObsBuilder):
         pads_encoding = encode_boost_pads(pads)
         game_state = encode_game_state(self.condition, inverted)
         obs = np.concatenate([*player_encodings, ball_data, prev_action_enc, *pads_encoding, game_state], dtype=np.float32)
-
         return obs
 
     def update_boostpads(self, pads):
