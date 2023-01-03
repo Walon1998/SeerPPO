@@ -10,7 +10,7 @@ class SeerNetworkV2(nn.Module):
 
         self.activation = nn.LeakyReLU(inplace=True)
 
-        self.OBS_SIZE = 106
+        self.OBS_SIZE = 142
 
         self.ENCODER_INTERMEDIATE_SIZE = 256
         self.LSTM_INPUT_SIZE = 256
@@ -49,9 +49,9 @@ class SeerNetworkV2(nn.Module):
 
     def encode(self, obs):
 
-        assert obs.shape[-1] in [106]
+        assert obs.shape[-1] in [142]
 
-        if obs.shape[-1] == 106:
+        if obs.shape[-1] == 142:
             return self.encoder(obs)
 
     def forward(self, obs, lstm_states, episode_starts, deterministic):
