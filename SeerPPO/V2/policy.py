@@ -12,7 +12,7 @@ class SeerNetworkV2(nn.Module):
 
         self.OBS_SIZE = 142
 
-        self.ENCODER_INTERMEDIATE_SIZE = 256
+        self.ENCODER_INTERMEDIATE_SIZE = 1024
 
         self.encoder = nn.Sequential(
             nn.Linear(self.OBS_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
@@ -21,22 +21,28 @@ class SeerNetworkV2(nn.Module):
             self.activation,
             nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
             self.activation,
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.ENCODER_INTERMEDIATE_SIZE),
+            self.activation,
         )
 
         self.value_network = nn.Sequential(
-            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, 256),
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.ENCODER_INTERMEDIATE_SIZE // 2),
             self.activation,
-            nn.Linear(256, 128),
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE // 2, self.ENCODER_INTERMEDIATE_SIZE // 2),
             self.activation,
-            nn.Linear(128, 1),
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE // 2, self.ENCODER_INTERMEDIATE_SIZE // 2),
+            self.activation,
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE // 2, 1),
         )
 
         self.policy_network = nn.Sequential(
-            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, 256),
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE, self.ENCODER_INTERMEDIATE_SIZE // 2),
             self.activation,
-            nn.Linear(256, 128),
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE // 2, self.ENCODER_INTERMEDIATE_SIZE // 2),
             self.activation,
-            nn.Linear(128, 18),
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE // 2, self.ENCODER_INTERMEDIATE_SIZE // 2),
+            self.activation,
+            nn.Linear(self.ENCODER_INTERMEDIATE_SIZE // 2, 18),
         )
 
         self.distribution = MultiCategoricalDistribution([3, 3, 3, 3, 2, 2, 2])
